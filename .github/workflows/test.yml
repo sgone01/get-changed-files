@@ -89,7 +89,7 @@ jobs:
 
       - id: files
         name: Run the action
-        uses: ./dist/main.js
+        uses: ./
 
       - name: Print steps context output
         run: |
