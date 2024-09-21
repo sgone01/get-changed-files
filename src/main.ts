@@ -117,13 +117,15 @@ async function run(): Promise<void> {
       modified: string[] = [],
       removed: string[] = [],
       renamed: string[] = [],
-      addedModified: string[] = []
+      addedModified: string[] = [],
+      skipped: string[] = [];
 
     for (const file of files) {
       const filename = file.filename
 
       // Check if the file should be excluded
       if (exclusions.has(filename)) {
+        skipped.push(filename); 
         core.info(`Excluding file: ${filename}`)
         continue // Skip this file
       }
@@ -195,6 +197,9 @@ async function run(): Promise<void> {
         break
     }
 
+    const skippedFormatted = skipped.join(', ');
+    core.info(`Skipped: ${skippedFormatted}`);
+
     // Log the output values
     core.info(`All: ${allFormatted}`)
     core.info(`Added: ${addedFormatted}`)
@@ -210,6 +215,7 @@ async function run(): Promise<void> {
     core.setOutput('removed', removedFormatted)
     core.setOutput('renamed', renamedFormatted)
     core.setOutput('added_modified', addedModifiedFormatted)
+    core.setOutput('skipped', skippedFormatted);
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error))
   }
