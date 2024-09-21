@@ -79,6 +79,11 @@ async function run(): Promise<void> {
 
     // Process the changed files
     const files = response.data.files
+    
+    if (!files) {
+      core.setFailed('No files were found in the compare commits response.');
+      return;
+    }
     const all: string[] = [],
       added: string[] = [],
       modified: string[] = [],
