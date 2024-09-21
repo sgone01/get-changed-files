@@ -34,6 +34,7 @@
     "format": "prettier --write **/*.ts",
     "format:check": "prettier --check **/*.ts",
     "lint": "eslint src/**/*.ts",
+    "package": "npm pack",
     "test": "jest",
     "all": "yarn clean && yarn build && yarn format && yarn lint && yarn package && yarn test"
   },
