@@ -16,15 +16,16 @@ async function run(): Promise<void> {
     let exclusions: Set<string> = new Set()
     if (excludeFilePath) {
       try {
-        const data = await fs.readFile(excludeFilePath, 'utf-8')
-        const lines = data.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'))
-        if (lines.length === 0) {
-          core.info("exclude-file doesn't have anything to exclude.");
-        } else {
-          exclusions = new Set(lines)
-        }
-      } catch (error) {
-        core.info(`exclude-file not present: ${excludeFilePath}`);
+        const fileContent = await fs.readFile(excludeFilePath, 'utf-8');
+        const lines = fileContent.split('\n').filter(line => {
+          // Ignore lines that start with '#' (comments) or are empty
+          const trimmedLine = line.trim();
+          return trimmedLine.length > 0 && !trimmedLine.startsWith('#');
+        });
+        return lines;
+      } catch (err) {
+        core.setFailed(`Error reading exclude file: ${err.message}`);
+        return;
       }
     } else {
       core.info("exclude-file not present");
@@ -79,7 +80,7 @@ async function run(): Promise<void> {
 
     // Process the changed files
     const files = response.data.files
-    
+
     if (!files) {
       core.setFailed('No files were found in the compare commits response.');
       return;
