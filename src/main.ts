@@ -13,23 +13,52 @@ async function run(): Promise<void> {
     const excludeFilePath = core.getInput('exclude-file', { required: false })
 
     // Read the exclude file if it exists
-    let exclusions: Set<string> = new Set()
+    let exclusions: Set<string> = new Set();
+
     if (excludeFilePath) {
       try {
-        const fileContent = await fs.readFile(excludeFilePath, 'utf-8');
-        const lines = fileContent.split('\n').filter(line => {
-          // Ignore lines that start with '#' (comments) or are empty
-          const trimmedLine = line.trim();
-          return trimmedLine.length > 0 && !trimmedLine.startsWith('#');
-        });
-        return lines;
-      } catch (err) {
-        core.setFailed(`Error reading exclude file: ${err.message}`);
-        return;
+        const data = await fs.readFile(excludeFilePath, 'utf-8');
+
+        // Split the file content into lines, trim whitespace, and filter out lines starting with '#'
+        const lines = data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0 && !line.startsWith('#'));
+
+        // If no valid lines found
+        if (lines.length === 0) {
+          core.info("exclude-file doesn't have anything to exclude.");
+        } else {
+          exclusions = new Set(lines);
+        }
+      } catch (error) {
+        // Handle any file read errors
+        if (error instanceof Error) {
+          core.info(`Error reading exclude-file: ${error.message}`);
+        } else {
+          core.info(`exclude-file not present: ${excludeFilePath}`);
+        }
       }
     } else {
       core.info("exclude-file not present");
     }
+
+    // let exclusions: Set<string> = new Set()
+    // if (excludeFilePath) {
+    //   try {
+    //     const data = await fs.readFile(excludeFilePath, 'utf-8')
+    //     const lines = data.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'))
+    //     if (lines.length === 0) {
+    //       core.info("exclude-file doesn't have anything to exclude.");
+    //     } else {
+    //       exclusions = new Set(lines)
+    //     }
+    //   } catch (error) {
+    //     core.info(`exclude-file not present: ${excludeFilePath}`);
+    //   }
+    // } else {
+    //   core.info("exclude-file not present");
+    // }
 
     // Get base and head commits
     let base: string = context.payload.pull_request?.base?.sha ?? '';
@@ -80,7 +109,7 @@ async function run(): Promise<void> {
 
     // Process the changed files
     const files = response.data.files
-
+    
     if (!files) {
       core.setFailed('No files were found in the compare commits response.');
       return;
