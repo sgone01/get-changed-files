@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
-// import * as GitHub from '@actions/github'
-import { context, GitHub } from '@actions/github'
+import * as GitHub from '@actions/github'
+import { context } from '@actions/github'
 import { promises as fs } from 'fs'
 
 type Format = 'space-delimited' | 'csv' | 'json'
@@ -8,7 +8,7 @@ type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 
 async function run(): Promise<void> {
   try {
-    const client = new GitHub(core.getInput('token', { required: true }))
+    const client = GitHub(core.getInput('token', { required: true }))
     const format = core.getInput('format', { required: true }) as Format
     const excludeFilePath = core.getInput('exclude-file', { required: false })
 
@@ -60,7 +60,7 @@ async function run(): Promise<void> {
     }
 
     // Use GitHub's compare two commits API
-    const response = await client.repos.compareCommits({
+    const response = await client.rest.repos.compareCommits({
       base,
       head,
       owner: context.repo.owner,
