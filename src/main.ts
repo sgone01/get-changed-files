@@ -8,7 +8,7 @@ type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 
 async function run(): Promise<void> {
   try {
-    const client = GitHub(core.getInput('token', { required: true }))
+    const client = GitHub.getOctokit(core.getInput('token', { required: true }))
     const format = core.getInput('format', { required: true }) as Format
     const excludeFilePath = core.getInput('exclude-file', { required: false })
 
