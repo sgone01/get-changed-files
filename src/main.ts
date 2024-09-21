@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { context, getOctokit } from '@actions/github'
+import { context, Github } from '@actions/github'
 import { promises as fs } from 'fs'
 
 type Format = 'space-delimited' | 'csv' | 'json'
@@ -7,7 +7,7 @@ type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 
 async function run(): Promise<void> {
   try {
-    const client = getOctokit(core.getInput('token', { required: true }))
+    const client = new Github(core.getInput('token', { required: true }))
     const format = core.getInput('format', { required: true }) as Format
     const excludeFilePath = core.getInput('exclude-file', { required: false })
 
