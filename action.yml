@@ -20,6 +20,11 @@ inputs:
       Can be 'space-delimited', 'csv', or 'json'.
     required: true
     default: space-delimited
+  exclude-file:
+    description: >
+      Path of exclusion like
+      /path/exclude.txt
+    required: false
 outputs:
   all:
     description: >
