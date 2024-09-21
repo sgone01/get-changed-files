@@ -43,6 +43,7 @@
     "@actions/github": "^2.1.0"
   },
   "devDependencies": {
+    "@types/fs-extra": "^9.0.13",
     "@octokit/rest": "^16.40.2",
     "@types/jest": "^25.1.1",
     "@types/node": "^12.12.29",
