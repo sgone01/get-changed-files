@@ -23,8 +23,9 @@ async function run(): Promise<void> {
     const eventName = context.eventName
 
     // Define the base and head commits to be extracted from the payload.
-    let base: string | undefined
-    let head: string | undefined
+    let base: string = context.payload.pull_request?.base?.sha ?? '';
+    let head: string = context.payload.pull_request?.head?.sha ?? '';
+
 
     switch (eventName) {
       case 'pull_request':
