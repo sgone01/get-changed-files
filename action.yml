@@ -1,6 +1,6 @@
 name: Get All Changed Files
-description: Get all of the files changed/modified in a pull request or push's commits.
-author: Jitterbit, Inc.
+description: Get all of the files changed/modified in a pull request or push's commits with exclusion as per user wants.
+author: Jitterbit, Inc (all the code) exclusion add by sgone01.
 branding:
   icon: file
   color: purple
