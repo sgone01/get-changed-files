@@ -1,30 +1,70 @@
 import * as core from '@actions/core'
-import {context, GitHub} from '@actions/github'
+import * as GitHub from '@actions/github'
+import {context} from '@actions/github'
+import {promises as fs} from 'fs'
 
 type Format = 'space-delimited' | 'csv' | 'json'
 type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 
 async function run(): Promise<void> {
   try {
-    // Create GitHub client with the API token.
-    const client = new GitHub(core.getInput('token', {required: true}))
+    const client = GitHub.getOctokit(core.getInput('token', {required: true}))
     const format = core.getInput('format', {required: true}) as Format
+    const excludeFilePath = core.getInput('exclude-file', {required: false})
 
-    // Ensure that the format parameter is set properly.
-    if (format !== 'space-delimited' && format !== 'csv' && format !== 'json') {
-      core.setFailed(`Format must be one of 'string-delimited', 'csv', or 'json', got '${format}'.`)
+    // Read the exclude file if it exists
+    let exclusions: Set<string> = new Set()
+
+    if (excludeFilePath) {
+      try {
+        const data = await fs.readFile(excludeFilePath, 'utf-8')
+
+        // Split the file content into lines, trim whitespace, and filter out lines starting with '#'
+        const lines = data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0 && !line.startsWith('#'))
+
+        // If no valid lines found
+        if (lines.length === 0) {
+          core.info("exclude-file doesn't have anything to exclude.")
+        } else {
+          exclusions = new Set(lines)
+        }
+      } catch (error) {
+        // Handle any file read errors
+        if (error instanceof Error) {
+          core.info(`Error reading exclude-file: ${error.message}`)
+        } else {
+          core.info(`exclude-file not present: ${excludeFilePath}`)
+        }
+      }
+    } else {
+      core.info('exclude-file not present')
     }
 
-    // Debug log the payload.
-    core.debug(`Payload keys: ${Object.keys(context.payload)}`)
+    // let exclusions: Set<string> = new Set()
+    // if (excludeFilePath) {
+    //   try {
+    //     const data = await fs.readFile(excludeFilePath, 'utf-8')
+    //     const lines = data.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'))
+    //     if (lines.length === 0) {
+    //       core.info("exclude-file doesn't have anything to exclude.");
+    //     } else {
+    //       exclusions = new Set(lines)
+    //     }
+    //   } catch (error) {
+    //     core.info(`exclude-file not present: ${excludeFilePath}`);
+    //   }
+    // } else {
+    //   core.info("exclude-file not present");
+    // }
 
-    // Get event name.
+    // Get base and head commits
+    let base: string = context.payload.pull_request?.base?.sha ?? ''
+    let head: string = context.payload.pull_request?.head?.sha ?? ''
+
     const eventName = context.eventName
-
-    // Define the base and head commits to be extracted from the payload.
-    let base: string | undefined
-    let head: string | undefined
-
     switch (eventName) {
       case 'pull_request':
         base = context.payload.pull_request?.base?.sha
@@ -35,71 +75,69 @@ async function run(): Promise<void> {
         head = context.payload.after
         break
       default:
-        core.setFailed(
-          `This action only supports pull requests and pushes, ${context.eventName} events are not supported. ` +
-            "Please submit an issue on this action's GitHub repo if you believe this in correct."
-        )
+        core.setFailed(`This action only supports pull requests and pushes, ${eventName} events are not supported.`)
     }
 
     // Log the base and head commits
     core.info(`Base commit: ${base}`)
     core.info(`Head commit: ${head}`)
 
-    // Ensure that the base and head properties are set on the payload.
     if (!base || !head) {
-      core.setFailed(
-        `The base and head commits are missing from the payload for this ${context.eventName} event. ` +
-          "Please submit an issue on this action's GitHub repo."
-      )
-
-      // To satisfy TypeScript, even though this is unreachable.
-      base = ''
-      head = ''
+      core.setFailed(`The base and head commits are missing from the payload for this ${eventName} event.`)
+      return
     }
 
-    // Use GitHub's compare two commits API.
-    // https://developer.github.com/v3/repos/commits/#compare-two-commits
-    const response = await client.repos.compareCommits({
+    // Use GitHub's compare two commits API
+    const response = await client.rest.repos.compareCommits({
       base,
       head,
       owner: context.repo.owner,
       repo: context.repo.repo
     })
 
-    // Ensure that the request was successful.
     if (response.status !== 200) {
-      core.setFailed(
-        `The GitHub API for comparing the base and head commits for this ${context.eventName} event returned ${response.status}, expected 200. ` +
-          "Please submit an issue on this action's GitHub repo."
-      )
+      core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`)
+      return
     }
 
-    // Ensure that the head commit is ahead of the base commit.
     if (response.data.status !== 'ahead') {
-      core.setFailed(
-        `The head commit for this ${context.eventName} event is not ahead of the base commit. ` +
-          "Please submit an issue on this action's GitHub repo."
-      )
+      core.setFailed(`The head commit is not ahead of the base commit.`)
+      return
     }
 
-    // Get the changed files from the response payload.
+    // Process the changed files
     const files = response.data.files
-    const all = [] as string[],
-      added = [] as string[],
-      modified = [] as string[],
-      removed = [] as string[],
-      renamed = [] as string[],
-      addedModified = [] as string[]
+
+    if (!files) {
+      core.setFailed('No files were found in the compare commits response.')
+      return
+    }
+    const all: string[] = [],
+      added: string[] = [],
+      modified: string[] = [],
+      removed: string[] = [],
+      renamed: string[] = [],
+      addedModified: string[] = [],
+      skipped: string[] = []
+
     for (const file of files) {
       const filename = file.filename
-      // If we're using the 'space-delimited' format and any of the filenames have a space in them,
-      // then fail the step.
+
+      // Check if the file should be excluded
+      if (exclusions.has(filename)) {
+        skipped.push(filename)
+        core.info(`Excluding file: ${filename}`)
+        continue // Skip this file
+      }
+
+      // Check for space in filename if using 'space-delimited'
       if (format === 'space-delimited' && filename.includes(' ')) {
         core.setFailed(
-          `One of your files includes a space. Consider using a different output format or removing spaces from your filenames. ` +
-            "Please submit an issue on this action's GitHub repo."
+          `One of your files includes a space. Consider using a different output format or removing spaces from your filenames.`
         )
+        return
       }
+
       all.push(filename)
       switch (file.status as FileStatus) {
         case 'added':
@@ -120,25 +158,20 @@ async function run(): Promise<void> {
           core.setFailed(
             `One of your files includes an unsupported file status '${file.status}', expected 'added', 'modified', 'removed', or 'renamed'.`
           )
+          return
       }
     }
 
-    // Format the arrays of changed files.
+    // Format the arrays of changed files
     let allFormatted: string,
       addedFormatted: string,
       modifiedFormatted: string,
       removedFormatted: string,
       renamedFormatted: string,
       addedModifiedFormatted: string
+
     switch (format) {
       case 'space-delimited':
-        // If any of the filenames have a space in them, then fail the step.
-        for (const file of all) {
-          if (file.includes(' '))
-            core.setFailed(
-              `One of your files includes a space. Consider using a different output format or removing spaces from your filenames.`
-            )
-        }
         allFormatted = all.join(' ')
         addedFormatted = added.join(' ')
         modifiedFormatted = modified.join(' ')
@@ -164,7 +197,10 @@ async function run(): Promise<void> {
         break
     }
 
-    // Log the output values.
+    const skippedFormatted = skipped.join(', ')
+    core.info(`Skipped: ${skippedFormatted}`)
+
+    // Log the output values
     core.info(`All: ${allFormatted}`)
     core.info(`Added: ${addedFormatted}`)
     core.info(`Modified: ${modifiedFormatted}`)
@@ -172,18 +208,16 @@ async function run(): Promise<void> {
     core.info(`Renamed: ${renamedFormatted}`)
     core.info(`Added or modified: ${addedModifiedFormatted}`)
 
-    // Set step output context.
+    // Set step output context
     core.setOutput('all', allFormatted)
     core.setOutput('added', addedFormatted)
     core.setOutput('modified', modifiedFormatted)
     core.setOutput('removed', removedFormatted)
     core.setOutput('renamed', renamedFormatted)
     core.setOutput('added_modified', addedModifiedFormatted)
-
-    // For backwards-compatibility
-    core.setOutput('deleted', removedFormatted)
+    core.setOutput('skipped', skippedFormatted)
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(error instanceof Error ? error.message : String(error))
   }
 }
 
