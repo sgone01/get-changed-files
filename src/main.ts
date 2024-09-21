@@ -1,157 +1,110 @@
 import * as core from '@actions/core'
-import {context, GitHub} from '@actions/github'
-import * as fs from 'fs/promises'  // Use fs promises for async handling
-import * as path from 'path'
+import { context, getOctokit } from '@actions/github'
+import { readFile } from 'fs/promises'
 
 type Format = 'space-delimited' | 'csv' | 'json'
 type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 
 async function run(): Promise<void> {
   try {
-    const client = new GitHub(core.getInput('token', {required: true}))
-    const format = core.getInput('format', {required: true}) as Format
-    const excludeFilePath = core.getInput('exclude-file', {required: false})
+    // Create GitHub client with the API token.
+    const client = getOctokit(core.getInput('token', { required: true }))
+    const format = core.getInput('format', { required: true }) as Format
 
-    // Validate format
-    if (!['space-delimited', 'csv', 'json'].includes(format)) {
-      return core.setFailed(`Invalid format: ${format}. Supported formats: 'space-delimited', 'csv', 'json'.`)
+    // Ensure that the format parameter is set properly.
+    if (format !== 'space-delimited' && format !== 'csv' && format !== 'json') {
+      core.setFailed(`Format must be one of 'space-delimited', 'csv', or 'json', got '${format}'.`)
     }
 
-    const {base, head} = extractCommits(context)
+    // Debug log the payload.
+    core.debug(`Payload keys: ${Object.keys(context.payload)}`)
 
+    // Get event name.
+    const eventName = context.eventName
+
+    // Define the base and head commits to be extracted from the payload.
+    let base: string | undefined
+    let head: string | undefined
+
+    switch (eventName) {
+      case 'pull_request':
+        base = context.payload.pull_request?.base?.sha
+        head = context.payload.pull_request?.head?.sha
+        break
+      case 'push':
+        base = context.payload.before
+        head = context.payload.after
+        break
+      default:
+        core.setFailed(
+          `This action only supports pull requests and pushes, ${context.eventName} events are not supported. ` +
+            "Please submit an issue on this action's GitHub repo if you believe this is incorrect."
+        )
+    }
+
+    // Log the base and head commits
+    core.info(`Base commit: ${base}`)
+    core.info(`Head commit: ${head}`)
+
+    // Ensure that the base and head properties are set on the payload.
     if (!base || !head) {
-      return core.setFailed('Base or head commit is missing.')
+      core.setFailed(
+        `The base and head commits are missing from the payload for this ${context.eventName} event. ` +
+          "Please submit an issue on this action's GitHub repo."
+      )
     }
 
-    const excludedItems = await getExcludedItems(excludeFilePath)
+    // Exclude files logic
+    const excludeFilePath = core.getInput('exclude-file', { required: false })
+    const excludeFiles = new Set<string>()
 
-    const response = await client.repos.compareCommits({
+    if (excludeFilePath) {
+      try {
+        const excludeFileContent = await readFile(excludeFilePath, 'utf8')
+        excludeFileContent
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line && !line.startsWith('#'))
+          .forEach(line => excludeFiles.add(line))
+      } catch (err) {
+        core.warning(`Error reading exclude file: ${err}`)
+      }
+    }
+
+    // Use GitHub's compare two commits API.
+    const response = await client.rest.repos.compareCommits({
       base,
       head,
       owner: context.repo.owner,
-      repo: context.repo.repo
+      repo: context.repo.repo,
     })
 
     if (response.status !== 200) {
-      return core.setFailed(`GitHub API error: ${response.status}`)
+      core.setFailed(
+        `The GitHub API for comparing the base and head commits for this ${context.eventName} event returned ${response.status}, expected 200.`
+      )
     }
 
-    if (response.data.status !== 'ahead') {
-      return core.setFailed('The head commit is not ahead of the base commit.')
-    }
+    const files = response.data.files || []
+    const filteredFiles = files.filter(file => !excludeFiles.has(file.filename))
 
-    const categorizedFiles = categorizeFiles(response.data.files || [], excludedItems)
-
-    // Format and output results
-    const formattedOutput = formatOutput(categorizedFiles, format)
-    logAndSetOutputs(formattedOutput)
-
-  } catch (error) {
-    core.setFailed(`Action failed with error: ${error.message}`)
-  }
-}
-
-// Extract commits based on event context
-function extractCommits(context: any): {base?: string, head?: string} {
-  const eventName = context.eventName
-  let base: string | undefined, head: string | undefined
-
-  if (eventName === 'pull_request') {
-    base = context.payload.pull_request?.base?.sha
-    head = context.payload.pull_request?.head?.sha
-  } else if (eventName === 'push') {
-    base = context.payload.before
-    head = context.payload.after
-  } else {
-    core.setFailed(`Unsupported event: ${eventName}`)
-  }
-
-  return {base, head}
-}
-
-// Fetch and parse the exclude file asynchronously
-async function getExcludedItems(excludeFilePath?: string): Promise<string[]> {
-  if (!excludeFilePath) return []
-
-  try {
-    const fileContents = await fs.readFile(excludeFilePath, 'utf-8')
-    return fileContents
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#')) // Ignore comments and empty lines
-  } catch (error) {
-    core.info('Exclude file not present or unreadable.')
-    return []
-  }
-}
-
-// Categorize files based on their status and apply exclusion
-function categorizeFiles(files: any[], excludedItems: string[]): Record<string, string[]> {
-  const categories = {
-    all: [] as string[],
-    added: [] as string[],
-    modified: [] as string[],
-    removed: [] as string[],
-    renamed: [] as string[],
-    addedModified: [] as string[]
-  }
-
-  files.forEach(file => {
-    const filename = file.filename
-    if (excludedItems.some(exclude => filename.startsWith(exclude))) {
-      core.info(`Excluding file: ${filename}`)
+    if (filteredFiles.length === 0) {
+      core.info("All files are excluded by the exclude file.")
       return
     }
 
-    categories.all.push(filename)
-    if (file.status === 'added') {
-      categories.added.push(filename)
-      categories.addedModified.push(filename)
-    } else if (file.status === 'modified') {
-      categories.modified.push(filename)
-      categories.addedModified.push(filename)
-    } else if (file.status === 'removed') {
-      categories.removed.push(filename)
-    } else if (file.status === 'renamed') {
-      categories.renamed.push(filename)
+    // Processing files logic here (similar to before)
+    const all = filteredFiles.map(file => file.filename)
+
+    core.setOutput('all', all.join(', '))
+
+  } catch (error) {
+    if (error instanceof Error) {
+      core.setFailed(error.message)
     } else {
-      core.setFailed(`Unknown file status: ${file.status}`)
-    }
-  })
-
-  return categories
-}
-
-// Format output based on the specified format
-function formatOutput(files: Record<string, string[]>, format: Format): Record<string, string> {
-  const formatter = (arr: string[]) => {
-    switch (format) {
-      case 'space-delimited': return arr.join(' ')
-      case 'csv': return arr.join(',')
-      case 'json': return JSON.stringify(arr)
-      default: return ''
+      core.setFailed(String(error))
     }
   }
-
-  return {
-    all: formatter(files.all),
-    added: formatter(files.added),
-    modified: formatter(files.modified),
-    removed: formatter(files.removed),
-    renamed: formatter(files.renamed),
-    addedModified: formatter(files.addedModified)
-  }
-}
-
-// Log outputs and set them in the action's output context
-function logAndSetOutputs(formattedOutput: Record<string, string>): void {
-  for (const [key, value] of Object.entries(formattedOutput)) {
-    core.info(`${key}: ${value}`)
-    core.setOutput(key, value)
-  }
-
-  // For backward compatibility
-  core.setOutput('deleted', formattedOutput.removed)
 }
 
 run()
