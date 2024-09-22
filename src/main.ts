@@ -166,6 +166,7 @@ async function run(): Promise<void> {
           )
           return
       }
+      core.info(`sid all: ${all}`)
     }
 
     // Format the arrays of changed files
@@ -197,7 +198,7 @@ async function run(): Promise<void> {
         addedModifiedFormatted = addedModified.join(',')
         break
       case 'json':
-        skippedFormatted = all.join(' ')
+        skippedFormatted = JSON.stringify(skipped)
         allFormatted = JSON.stringify(all)
         addedFormatted = JSON.stringify(added)
         modifiedFormatted = JSON.stringify(modified)

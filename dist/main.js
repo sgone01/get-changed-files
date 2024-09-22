@@ -24637,6 +24637,7 @@ async function run() {
           );
           return;
       }
+      core.info(`sid all: ${all}`);
     }
     let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted, skippedFormatted;
     switch (format) {
@@ -24659,7 +24660,7 @@ async function run() {
         addedModifiedFormatted = addedModified.join(",");
         break;
       case "json":
-        skippedFormatted = all.join(" ");
+        skippedFormatted = JSON.stringify(skipped);
         allFormatted = JSON.stringify(all);
         addedFormatted = JSON.stringify(added);
         modifiedFormatted = JSON.stringify(modified);
