@@ -24534,10 +24534,6 @@ var import_fs = require("fs");
 async function run() {
   try {
     const client = GitHub.getOctokit(core.getInput("token", { required: true }));
-    if (client) {
-      core.getInput("token", { required: true });
-      core.info("Token is created", client);
-    }
     const format = core.getInput("format", { required: true });
     const excludeFilePath = core.getInput("exclude-file", { required: false });
     let exclusions = /* @__PURE__ */ new Set();
@@ -24581,14 +24577,15 @@ async function run() {
       core.setFailed(`The base and head commits are missing from the payload for this ${eventName} event.`);
       return;
     }
-    core.setOutput("token", import_github.context.repo);
+    core.info(`repo owner: ${import_github.context.repo.owner}`);
+    core.info(`repo owner: ${import_github.context.repo.repo}`);
     const response = await client.rest.repos.compareCommits({
       base,
       head,
       owner: import_github.context.repo.owner,
       repo: import_github.context.repo.repo
     });
-    core.setOutput("response", response);
+    core.info(`response commit: ${response}`);
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`);
       return;

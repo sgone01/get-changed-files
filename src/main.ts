@@ -9,10 +9,6 @@ type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 async function run(): Promise<void> {
   try {
     const client = GitHub.getOctokit(core.getInput('token', {required: true}))
-    if (client) {
-      core.getInput('token', {required: true})
-      core.info('Token is created', client)
-    }
     const format = core.getInput('format', {required: true}) as Format
     const excludeFilePath = core.getInput('exclude-file', {required: false})
 
@@ -90,7 +86,8 @@ async function run(): Promise<void> {
       core.setFailed(`The base and head commits are missing from the payload for this ${eventName} event.`)
       return
     }
-    core.setOutput('token', context.repo)
+    core.info(`repo owner: ${context.repo.owner}`)
+    core.info(`repo owner: ${context.repo.repo}`)
 
     // Use GitHub's compare two commits API
     const response = await client.rest.repos.compareCommits({
@@ -100,7 +97,7 @@ async function run(): Promise<void> {
       repo: context.repo.repo
     })
 
-    core.setOutput('response', response)
+    core.info(`response commit: ${response}`)
 
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`)
