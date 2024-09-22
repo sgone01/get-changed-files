@@ -24632,6 +24632,7 @@ async function run() {
           return;
       }
     }
+    core.info(`Processing`);
     let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted, skippedFormatted;
     switch (format) {
       case "space-delimited":

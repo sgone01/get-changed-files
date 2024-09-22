@@ -160,6 +160,8 @@ async function run(): Promise<void> {
       }
     }
 
+    core.info(`Processing`)
+
     // if (files.length === 0 || added.length === 0) {
     //   core.info('No files matched exclusion. Adding all files to added array.')
     //   all.push(...files.map(file => file.filename))
