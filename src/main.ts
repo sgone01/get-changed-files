@@ -133,7 +133,7 @@ async function run(): Promise<void> {
       }
 
       // Check for space in filename if using 'space-delimited'
-      if (format === 'space-delimited' && filename.includes('')) {
+      if (format === 'space-delimited' && filename.includes(' ')) {
         core.setFailed(
           `One of your files includes a space. Consider using a different output format or removing spaces from your filenames.`
         )
