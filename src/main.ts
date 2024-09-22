@@ -97,7 +97,7 @@ async function run(): Promise<void> {
       repo: context.repo.repo
     })
 
-    core.info(`response commit: ${response}`)
+    core.info(`response commit: ${response.status}`)
 
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`)
@@ -108,6 +108,8 @@ async function run(): Promise<void> {
       core.setFailed(`The head commit is not ahead of the base commit.`)
       return
     }
+
+    core.info(`response files: ${response.data.files}`)
 
     // Process the changed files
     const files = response.data.files

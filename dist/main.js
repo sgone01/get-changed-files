@@ -24585,7 +24585,7 @@ async function run() {
       owner: import_github.context.repo.owner,
       repo: import_github.context.repo.repo
     });
-    core.info(`response commit: ${response}`);
+    core.info(`response commit: ${response.status}`);
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`);
       return;
@@ -24594,6 +24594,7 @@ async function run() {
       core.setFailed(`The head commit is not ahead of the base commit.`);
       return;
     }
+    core.info(`response files: ${response.data.files}`);
     const files = response.data.files;
     if (!files) {
       core.setFailed("No files were found in the compare commits response.");
