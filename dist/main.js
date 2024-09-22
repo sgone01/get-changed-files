@@ -24632,10 +24632,6 @@ async function run() {
           return;
       }
     }
-    if (files.length === 0 || added.length === 0) {
-      core.info("No files matched exclusion. Adding all files to added array.");
-      all.push(...files.map((file) => file.filename));
-    }
     let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted, skippedFormatted;
     switch (format) {
       case "space-delimited":

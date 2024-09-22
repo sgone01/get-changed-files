@@ -160,10 +160,10 @@ async function run(): Promise<void> {
       }
     }
 
-    if (files.length === 0 || added.length === 0) {
-      core.info('No files matched exclusion. Adding all files to added array.')
-      all.push(...files.map(file => file.filename))
-    }
+    // if (files.length === 0 || added.length === 0) {
+    //   core.info('No files matched exclusion. Adding all files to added array.')
+    //   all.push(...files.map(file => file.filename))
+    // }
 
     // Format the arrays of changed files
     let allFormatted: string,
