@@ -128,7 +128,7 @@ async function run(): Promise<void> {
 
     for (const file of files) {
       const filename = file.filename
-
+      core.info(`files: ${filename}`)
       // Check if the file should be excluded
       if (exclusions.has(filename)) {
         skipped.push(filename)

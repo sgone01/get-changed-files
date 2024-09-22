@@ -24603,6 +24603,7 @@ async function run() {
     const all = [], added = [], modified = [], removed = [], renamed = [], addedModified = [], skipped = [];
     for (const file of files) {
       const filename = file.filename;
+      core.info(`files: ${filename}`);
       if (exclusions.has(filename)) {
         skipped.push(filename);
         core.info(`Excluding file: ${filename}`);
