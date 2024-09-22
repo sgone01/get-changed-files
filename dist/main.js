@@ -24669,13 +24669,13 @@ async function run() {
     removedFormatted && core.info(`Removed: ${removedFormatted}`);
     renamedFormatted && core.info(`Renamed: ${renamedFormatted}`);
     addedModifiedFormatted && core.info(`Added or modified: ${addedModifiedFormatted}`);
-    allFormatted && core.setOutput("all", allFormatted);
-    addedFormatted && core.setOutput("added", addedFormatted);
-    modifiedFormatted && core.setOutput("modified", modifiedFormatted);
-    removedFormatted && core.setOutput("removed", removedFormatted);
-    renamedFormatted && core.setOutput("renamed", renamedFormatted);
-    addedModifiedFormatted && core.setOutput("added_modified", addedModifiedFormatted);
-    skippedFormatted && core.setOutput("skipped", skippedFormatted);
+    core.setOutput("all", allFormatted);
+    core.setOutput("added", addedFormatted);
+    core.setOutput("modified", modifiedFormatted);
+    core.setOutput("removed", removedFormatted);
+    core.setOutput("renamed", renamedFormatted);
+    core.setOutput("added_modified", addedModifiedFormatted);
+    core.setOutput("skipped", skippedFormatted);
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error));
   }
