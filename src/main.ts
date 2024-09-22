@@ -136,7 +136,7 @@ async function run(): Promise<void> {
         )
         return
       }
-
+      all.push(filename)
       switch (file.status as FileStatus) {
         case 'added':
           added.push(filename)

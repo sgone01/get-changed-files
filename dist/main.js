@@ -24610,6 +24610,7 @@ async function run() {
         );
         return;
       }
+      all.push(filename);
       switch (file.status) {
         case "added":
           added.push(filename);
