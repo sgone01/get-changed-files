@@ -95,6 +95,8 @@ async function run(): Promise<void> {
       repo: context.repo.repo
     })
 
+    core.setOutput('response', response)
+
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`)
       return
@@ -131,7 +133,7 @@ async function run(): Promise<void> {
       }
 
       // Check for space in filename if using 'space-delimited'
-      if (format === 'space-delimited' && filename.includes(' ')) {
+      if (format === 'space-delimited' && filename.includes('')) {
         core.setFailed(
           `One of your files includes a space. Consider using a different output format or removing spaces from your filenames.`
         )
@@ -168,10 +170,12 @@ async function run(): Promise<void> {
       modifiedFormatted: string,
       removedFormatted: string,
       renamedFormatted: string,
-      addedModifiedFormatted: string
+      addedModifiedFormatted: string,
+      skippedFormatted: string
 
     switch (format) {
       case 'space-delimited':
+        skippedFormatted = all.join(' ')
         allFormatted = all.join(' ')
         addedFormatted = added.join(' ')
         modifiedFormatted = modified.join(' ')
@@ -180,6 +184,7 @@ async function run(): Promise<void> {
         addedModifiedFormatted = addedModified.join(' ')
         break
       case 'csv':
+        skippedFormatted = all.join(' ')
         allFormatted = all.join(',')
         addedFormatted = added.join(',')
         modifiedFormatted = modified.join(',')
@@ -188,6 +193,7 @@ async function run(): Promise<void> {
         addedModifiedFormatted = addedModified.join(',')
         break
       case 'json':
+        skippedFormatted = all.join(' ')
         allFormatted = JSON.stringify(all)
         addedFormatted = JSON.stringify(added)
         modifiedFormatted = JSON.stringify(modified)
@@ -197,25 +203,24 @@ async function run(): Promise<void> {
         break
     }
 
-    const skippedFormatted = skipped.join(', ')
-    core.info(`Skipped: ${skippedFormatted}`)
+    skippedFormatted && core.info(`Skipped: ${skippedFormatted}`)
 
     // Log the output values
-    core.info(`All: ${allFormatted}`)
-    core.info(`Added: ${addedFormatted}`)
-    core.info(`Modified: ${modifiedFormatted}`)
-    core.info(`Removed: ${removedFormatted}`)
-    core.info(`Renamed: ${renamedFormatted}`)
-    core.info(`Added or modified: ${addedModifiedFormatted}`)
+    allFormatted && core.info(`All: ${allFormatted}`)
+    addedFormatted && core.info(`Added: ${addedFormatted}`)
+    modifiedFormatted && core.info(`Modified: ${modifiedFormatted}`)
+    removedFormatted && core.info(`Removed: ${removedFormatted}`)
+    renamedFormatted && core.info(`Renamed: ${renamedFormatted}`)
+    addedModifiedFormatted && core.info(`Added or modified: ${addedModifiedFormatted}`)
 
     // Set step output context
-    core.setOutput('all', allFormatted)
-    core.setOutput('added', addedFormatted)
-    core.setOutput('modified', modifiedFormatted)
-    core.setOutput('removed', removedFormatted)
-    core.setOutput('renamed', renamedFormatted)
-    core.setOutput('added_modified', addedModifiedFormatted)
-    core.setOutput('skipped', skippedFormatted)
+    allFormatted && core.setOutput('all', allFormatted)
+    addedFormatted && core.setOutput('added', addedFormatted)
+    modifiedFormatted && core.setOutput('modified', modifiedFormatted)
+    removedFormatted && core.setOutput('removed', removedFormatted)
+    renamedFormatted && core.setOutput('renamed', renamedFormatted)
+    addedModifiedFormatted && core.setOutput('added_modified', addedModifiedFormatted)
+    skippedFormatted && core.setOutput('skipped', skippedFormatted)
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error))
   }
