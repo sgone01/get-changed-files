@@ -24577,15 +24577,12 @@ async function run() {
       core.setFailed(`The base and head commits are missing from the payload for this ${eventName} event.`);
       return;
     }
-    core.info(`repo owner: ${import_github.context.repo.owner}`);
-    core.info(`repo owner: ${import_github.context.repo.repo}`);
     const response = await client.rest.repos.compareCommits({
       base,
       head,
       owner: import_github.context.repo.owner,
       repo: import_github.context.repo.repo
     });
-    core.info(`response commit: ${response.status}`);
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`);
       return;
@@ -24594,7 +24591,6 @@ async function run() {
       core.setFailed(`The head commit is not ahead of the base commit.`);
       return;
     }
-    core.info(`response files: ${response.data.files}`);
     const files = response.data.files;
     if (!files) {
       core.setFailed("No files were found in the compare commits response.");
@@ -24603,7 +24599,6 @@ async function run() {
     const all = [], added = [], modified = [], removed = [], renamed = [], addedModified = [], skipped = [];
     for (const file of files) {
       const filename = file.filename;
-      core.info(`files: ${filename}`);
       if (exclusions.has(filename)) {
         skipped.push(filename);
         core.info(`Excluding file: ${filename}`);
@@ -24615,7 +24610,6 @@ async function run() {
         );
         return;
       }
-      all.push(filename);
       switch (file.status) {
         case "added":
           added.push(filename);
@@ -24637,7 +24631,10 @@ async function run() {
           );
           return;
       }
-      core.info(`sid all: ${all}`);
+    }
+    if (files.length === 0 || added.length === 0) {
+      core.info("No files matched exclusion. Adding all files to added array.");
+      all.push(...files.map((file) => file.filename));
     }
     let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted, skippedFormatted;
     switch (format) {

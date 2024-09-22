@@ -86,8 +86,6 @@ async function run(): Promise<void> {
       core.setFailed(`The base and head commits are missing from the payload for this ${eventName} event.`)
       return
     }
-    core.info(`repo owner: ${context.repo.owner}`)
-    core.info(`repo owner: ${context.repo.repo}`)
 
     // Use GitHub's compare two commits API
     const response = await client.rest.repos.compareCommits({
@@ -96,8 +94,6 @@ async function run(): Promise<void> {
       owner: context.repo.owner,
       repo: context.repo.repo
     })
-
-    core.info(`response commit: ${response.status}`)
 
     if (response.status !== 200) {
       core.setFailed(`The GitHub API for comparing commits returned ${response.status}, expected 200.`)
@@ -108,8 +104,6 @@ async function run(): Promise<void> {
       core.setFailed(`The head commit is not ahead of the base commit.`)
       return
     }
-
-    core.info(`response files: ${response.data.files}`)
 
     // Process the changed files
     const files = response.data.files
@@ -128,7 +122,6 @@ async function run(): Promise<void> {
 
     for (const file of files) {
       const filename = file.filename
-      core.info(`files: ${filename}`)
       // Check if the file should be excluded
       if (exclusions.has(filename)) {
         skipped.push(filename)
@@ -144,7 +137,6 @@ async function run(): Promise<void> {
         return
       }
 
-      all.push(filename)
       switch (file.status as FileStatus) {
         case 'added':
           added.push(filename)
@@ -166,7 +158,11 @@ async function run(): Promise<void> {
           )
           return
       }
-      core.info(`sid all: ${all}`)
+    }
+
+    if (files.length === 0 || added.length === 0) {
+      core.info('No files matched exclusion. Adding all files to added array.')
+      all.push(...files.map(file => file.filename))
     }
 
     // Format the arrays of changed files
