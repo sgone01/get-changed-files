@@ -29,6 +29,9 @@ outputs:
   all:
     description: >
       Array of all changed files.
+  skipped:
+    description: >
+      Array of all skipped files.
   added:
     description: >
       Array of added files.
